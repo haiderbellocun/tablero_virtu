@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtualización de contenidos · Dirección de Operaciones · CUN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="barra">
+  <div class="marca">
+    <svg class="logo-cun" viewBox="0 0 120 34" aria-label="CUN">
+      <text x="0" y="26" font-family="Inter, sans-serif" font-size="27" font-weight="700" fill="#fff" letter-spacing="-1">cun</text>
+    </svg>
+    <span class="divisor"></span>
+    <svg class="icono-op" viewBox="0 0 44 44" aria-hidden="true">
+      <circle cx="22" cy="22" r="20" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <circle cx="22" cy="15" r="5.5" fill="#fff"/>
+      <path d="M22 22v14" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M15 29h14" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+    <div class="titulo-marca">
+      <span>Dirección de</span>
+      <strong>Operaciones</strong>
+    </div>
+  </div>
+  <div class="usuario">
+    <div class="avatar" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="4" fill="#8fa3ba"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="#8fa3ba"/></svg>
+    </div>
+    <div class="usuario-datos">
+      <strong>Iron Fuentes</strong>
+      <span>Director de Operaciones</span>
+    </div>
+  </div>
+</header>
+
+<main class="lienzo">
+
+  <div class="encabezado">
+    <h1>Virtualización de contenidos</h1>
+    <div class="encabezado-derecha">
+      <nav class="pestanas" role="tablist">
+        <button class="pestana activa" data-vista="resumen" role="tab" aria-selected="true">Resumen</button>
+        <button class="pestana" data-vista="detalle" role="tab" aria-selected="false">Detalle</button>
+      </nav>
+      <div class="insignias" id="insignias"></div>
+    </div>
+  </div>
+
+  <section class="filtros" aria-label="Filtros del reporte">
+    <div class="filtro">
+      <label for="f-periodo">Periodo</label>
+      <select id="f-periodo"><option value="">Todos</option></select>
+    </div>
+    <div class="filtro">
+      <label for="f-escuela">Escuela</label>
+      <select id="f-escuela"><option value="">Todas</option></select>
+    </div>
+    <div class="filtro">
+      <label for="f-nivel">Nivel</label>
+      <select id="f-nivel"><option value="">Todos</option></select>
+    </div>
+    <div class="filtro">
+      <label for="f-programa">Programa</label>
+      <select id="f-programa"><option value="">Todos</option></select>
+    </div>
+    <div class="filtro">
+      <label for="f-semestre">Semestre</label>
+      <select id="f-semestre"><option value="">Todos</option></select>
+    </div>
+    <div class="filtro">
+      <label for="f-extension">Tipo de archivo</label>
+      <select id="f-extension"><option value="">Todos</option></select>
+    </div>
+    <div class="filtro filtro-busqueda">
+      <label for="f-busqueda">Buscar</label>
+      <input id="f-busqueda" type="search" placeholder="Programa, materia, gránulo o archivo…">
+    </div>
+    <button id="btn-limpiar" class="btn-limpiar" type="button">✕ Limpiar filtros</button>
+  </section>
+
+  <p class="estado-filtros" id="estado-filtros"></p>
+
+  <!-- ================= VISTA RESUMEN ================= -->
+  <div id="vista-resumen">
+
+    <section class="kpis" id="kpis" aria-label="Indicadores generales"></section>
+
+    <div class="rejilla">
+
+      <section class="panel">
+        <div class="panel-cabecera">
+          <div>
+            <h2 id="t-escuela">Comparativo por escuela</h2>
+            <p class="sub">¿Cómo se reparte el contenido virtualizado entre las escuelas?</p>
+          </div>
+          <div class="segmentado" id="seg-escuela">
+            <button data-metrica="archivos" class="activo">Archivos</button>
+            <button data-metrica="granulos">Gránulos</button>
+            <button data-metrica="materias">Materias</button>
+            <button data-metrica="programas">Programas</button>
+          </div>
+        </div>
+        <div class="grafico" id="g-escuela"></div>
+      </section>
+
+      <section class="panel">
+        <h2 id="t-nivel">Composición de programas por nivel</h2>
+        <p class="sub">Proporción de diplomados, especializaciones, maestrías y pregrados en cada escuela.</p>
+        <div class="grafico" id="g-nivel"></div>
+      </section>
+
+      <section class="panel">
+        <h2 id="t-bubble">Programas frente a escuelas</h2>
+        <p class="sub">Cada burbuja es una escuela · tamaño = archivos virtualizados.</p>
+        <div class="grafico" id="g-bubble"></div>
+      </section>
+
+      <section class="panel">
+        <h2 id="t-cobertura">Cobertura de virtualización por escuela</h2>
+        <p class="sub">Materias con al menos un archivo activo frente al total de materias (bullet chart).</p>
+        <div class="grafico" id="g-cobertura"></div>
+      </section>
+
+      <section class="panel">
+        <h2 id="t-extension">Distribución de archivos por tipo</h2>
+        <p class="sub">Formato de los archivos virtualizados en el alcance filtrado.</p>
+        <div class="grafico" id="g-extension"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-cabecera">
+          <div>
+            <h2 id="t-ranking">Programas por volumen de archivos</h2>
+            <p class="sub">Ranking individual — útil para priorizar producción.</p>
+          </div>
+          <div class="segmentado" id="seg-ranking">
+            <button data-orden="mayor" class="activo">Mayor volumen</button>
+            <button data-orden="menor">Menor volumen</button>
+          </div>
+        </div>
+        <div class="grafico grafico-alto" id="g-ranking"></div>
+      </section>
+
+      <section class="panel">
+        <h2 id="t-semestre">Archivos por semestre del plan de estudios</h2>
+        <p class="sub">Barras = archivos · línea = materias con contenido · semestre curricular 1–10.</p>
+        <div class="grafico" id="g-semestre"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Panel de alertas ejecutivas</h2>
+        <p class="sub">Hallazgos generados automáticamente a partir de los filtros activos.</p>
+        <div class="alertas" id="alertas"></div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ================= VISTA DETALLE ================= -->
+  <div id="vista-detalle" hidden>
+    <section class="panel panel-tabla">
+      <div class="panel-cabecera">
+        <div>
+          <h2>Tabla maestra de archivos virtualizados</h2>
+          <p class="sub"><span id="conteo-tabla">0 registros</span> · haz clic en un encabezado para ordenar</p>
+        </div>
+        <button id="btn-csv" class="btn-csv" type="button">Descargar CSV (filtro actual)</button>
+      </div>
+
+      <div class="tabla-envoltura">
+        <table id="tabla">
+          <thead>
+            <tr>
+              <th data-col="escuela">Escuela</th>
+              <th data-col="programa">Programa</th>
+              <th>Nivel</th>
+              <th data-col="semestre" class="num">Sem.</th>
+              <th data-col="materia">Materia</th>
+              <th data-col="granulo">Gránulo</th>
+              <th data-col="archivo">Archivo</th>
+              <th data-col="extension">Extensión</th>
+              <th data-col="periodo">Periodo</th>
+              <th data-col="fecha_registro">Registrado</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-cuerpo"></tbody>
+        </table>
+      </div>
+
+      <div class="paginacion">
+        <button id="pag-anterior" type="button">‹ Anterior</button>
+        <span id="pag-texto">Página 1</span>
+        <button id="pag-siguiente" type="button">Siguiente ›</button>
+      </div>
+    </section>
+  </div>
+
+  <footer class="pie">
+    <span id="pie-actualizado">Fuente: PostgreSQL · fabrica.archivo</span>
+  </footer>
+
+</main>
+
+<div class="cargando" id="cargando"><div class="giro"></div><p>Cargando el reporte…</p></div>
+<div class="error" id="error" hidden><h2>No se pudo cargar el reporte</h2><p id="error-texto"></p></div>
+
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/highcharts-more.js"></script>
+<script src="https://code.highcharts.com/modules/bullet.js"></script>
+<script src="https://code.highcharts.com/modules/accessibility.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

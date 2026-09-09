@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+.venv
+__pycache__
+*.pyc
+scripts_prueba/
+sql/00_esquema_erd.sql
+deploy.sh
+cloudbuild.yaml
+README.md

@@ -1,0 +1,45 @@
+substitutions:
+  _REGION: us-central1
+  _SERVICIO: reporte-virtualizacion
+  _REPO: contenedores
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICIO}:${SHORT_SHA}'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICIO}:${SHORT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICIO}:latest'
+      - '.'
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICIO}']
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '${_SERVICIO}'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICIO}:${SHORT_SHA}'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+      - '--service-account=${_SERVICIO}-sa@${PROJECT_ID}.iam.gserviceaccount.com'
+      - '--set-env-vars=PGHOST=136.116.213.121,PGPORT=5432,PGDATABASE=planner_db,PGUSER=planner_user,PGSSLMODE=prefer,FABRICA_SCHEMA=fabrica'
+      - '--set-secrets=PGPASSWORD=pg-password-reporte:latest'
+      - '--min-instances=0'
+      - '--max-instances=4'
+      - '--memory=512Mi'
+      - '--concurrency=40'
+      - '--no-allow-unauthenticated'
