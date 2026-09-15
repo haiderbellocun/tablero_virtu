@@ -48,6 +48,37 @@ NIVEL_EXPR = (
 )
 NIVELES = ["Diplomado", "Especialización", "Maestría", "Pregrado"]
 
+# fabrica.escuela trae la misma escuela repetida bajo varias grafias (typos,
+# falta de "DE", encoding roto de tildes) segun quien la haya cargado. Se
+# normaliza aqui — sin tocar el dato de origen — para que cada escuela real
+# aparezca como una sola fila en los paneles y en los desplegables. Las filas
+# con e.nombre = '' (sin escuela asignada) se excluyen directamente en
+# WHERE_BASE / where_materia mientras se corrige en el origen.
+ESCUELA_EXPR = (
+    "CASE "
+    "WHEN e.nombre ILIKE '%%DISE%%COMUNICACION%%' THEN 'Escuela de Diseño y Comunicación' "
+    "WHEN e.nombre ILIKE '%%CIENCIAS_SOCIALES%%GOBIERNO%%' THEN 'Escuela de Ciencias Sociales, Jurídicas y de Gobierno' "
+    "WHEN e.nombre ILIKE '%%INGENIERIA%%' THEN 'Escuela de Ingeniería' "
+    "WHEN e.nombre ILIKE '%%TRANSFORMACION_EMPRESARIAL%%' THEN 'Escuela de Transformación Empresarial' "
+    "WHEN e.nombre ILIKE '%%SALUD%%BIENESTAR%%' THEN 'Escuela de Salud y Bienestar' "
+    "ELSE initcap(replace(e.nombre, '_', ' ')) END"
+)
+
+# programa.nombre solo necesita formato (guion bajo -> espacio, mayusculas
+# iniciales); a diferencia de escuela, no hay variantes duplicadas conocidas.
+PROGRAMA_EXPR = "initcap(replace(pr.nombre, '_', ' '))"
+
+# extension.tipo es varchar(10) y, para archivos/carpetas sin extension real,
+# el cargue trunco el nombre a 10 caracteres en vez de dejarlo vacio (p.ej.
+# 'identifica', 'isplayer'). Esa basura y las filas sin extension ('') se
+# excluyen del panel de extensiones via esta lista blanca; el resto de
+# paneles (por escuela, programa, semestre, detalle) no se ve afectado.
+EXTENSIONES_VALIDAS = [
+    "PDF", "MP3", "MP4", "PNG", "DOCX", "ZIP", "TXT", "PPTX", "XML", "QUIZ",
+    "JPG", "PPTM", "WAV", "INI", "ICO", "AI", "SCENARIO", "PRPROJ", "TTF",
+    "M4A", "OTF",
+]
+
 FROM_ARCHIVO = f"""
 FROM       {ESQUEMA}.archivo      a
 JOIN       {ESQUEMA}.granulo      g   ON g.id  = a.granulo_id
@@ -69,7 +100,11 @@ JOIN       {ESQUEMA}.programa     pr  ON pr.id = m.programa_id
 JOIN       {ESQUEMA}.escuela      e   ON e.id  = pr.escuela_id
 """
 
-WHERE_BASE = "a.activo = TRUE AND c.nombre ILIKE '%%producto%%'"
+WHERE_BASE = "a.activo = TRUE AND c.nombre ILIKE '%%producto%%' AND e.nombre <> ''"
+
+# Misma exclusion de "sin escuela" para el universo estructural (sin join a
+# archivo/cliente), usada por where_materia.
+_ESCUELA_ASIGNADA = "e.nombre <> ''"
 
 
 # ---------- filtros ----------
@@ -78,10 +113,10 @@ def _condiciones_estructurales(f: dict) -> tuple[list[str], list]:
     cond: list[str] = []
     params: list = []
     if f.get("escuela"):
-        cond.append("e.nombre = %s")
+        cond.append(f"({ESCUELA_EXPR}) = %s")
         params.append(f["escuela"])
     if f.get("programa"):
-        cond.append("pr.nombre = %s")
+        cond.append(f"({PROGRAMA_EXPR}) = %s")
         params.append(f["programa"])
     if f.get("nivel"):
         cond.append(f"({NIVEL_EXPR}) = %s")
@@ -99,7 +134,7 @@ def _condiciones_contenido(f: dict) -> tuple[list[str], list]:
         cond.append("p.codigo = %s")
         params.append(f["periodo"])
     if f.get("extension"):
-        cond.append("ex.tipo = %s")
+        cond.append("upper(ex.tipo) = upper(%s)")
         params.append(f["extension"])
     if f.get("q"):
         like = f"%{f['q']}%"
@@ -125,7 +160,8 @@ def where_archivo(f: dict) -> tuple[str, list]:
 def where_materia(f: dict) -> tuple[str, list]:
     """WHERE solo estructural, para consultas sobre FROM_MATERIA (sin archivo)."""
     ce, pe = _condiciones_estructurales(f)
-    return (" AND ".join(ce) if ce else "TRUE"), pe
+    cond = [_ESCUELA_ASIGNADA] + ce
+    return " AND ".join(cond), pe
 
 
 # ---------- KPIs ----------
@@ -138,7 +174,7 @@ def sql_kpis(f: dict) -> tuple[str, list]:
         count(DISTINCT g.id)        AS granulos,
         count(DISTINCT m.id)        AS materias,
         count(DISTINCT pr.id)       AS programas,
-        count(DISTINCT e.id)        AS escuelas,
+        count(DISTINCT ({ESCUELA_EXPR})) AS escuelas,
         count(DISTINCT p.codigo)    AS periodos
     {FROM_ARCHIVO}
     WHERE {where}
@@ -166,14 +202,14 @@ def sql_por_escuela(f: dict) -> tuple[str, list]:
     where, params = where_archivo(f)
     sql = f"""
     SELECT
-        e.nombre                AS escuela,
+        ({ESCUELA_EXPR})        AS escuela,
         count(*)                AS archivos,
         count(DISTINCT g.id)    AS granulos,
         count(DISTINCT m.id)    AS materias,
         count(DISTINCT pr.id)   AS programas
     {FROM_ARCHIVO}
     WHERE {where}
-    GROUP BY e.nombre
+    GROUP BY ({ESCUELA_EXPR})
     ORDER BY archivos DESC
     """
     return sql, params
@@ -185,7 +221,7 @@ def sql_nivel_por_escuela(f: dict) -> tuple[str, list]:
     where, params = where_materia(f)
     sql = f"""
     SELECT
-        e.nombre AS escuela,
+        ({ESCUELA_EXPR}) AS escuela,
         count(DISTINCT pr.id) FILTER (WHERE ({NIVEL_EXPR}) = 'Diplomado')      AS diplomado,
         count(DISTINCT pr.id) FILTER (WHERE ({NIVEL_EXPR}) = 'Especialización') AS especializacion,
         count(DISTINCT pr.id) FILTER (WHERE ({NIVEL_EXPR}) = 'Maestría')       AS maestria,
@@ -193,7 +229,7 @@ def sql_nivel_por_escuela(f: dict) -> tuple[str, list]:
         count(DISTINCT pr.id)                                                  AS total
     {FROM_MATERIA}
     WHERE {where}
-    GROUP BY e.nombre
+    GROUP BY ({ESCUELA_EXPR})
     ORDER BY total DESC
     """
     return sql, params
@@ -204,13 +240,13 @@ def sql_bubble_escuela(f: dict) -> tuple[str, list]:
     where, params = where_archivo(f)
     sql = f"""
     SELECT
-        e.nombre                AS escuela,
+        ({ESCUELA_EXPR})        AS escuela,
         count(DISTINCT pr.id)   AS programas,
         count(DISTINCT m.id)    AS materias,
         count(*)                AS archivos
     {FROM_ARCHIVO}
     WHERE {where}
-    GROUP BY e.nombre
+    GROUP BY ({ESCUELA_EXPR})
     """
     return sql, params
 
@@ -220,10 +256,10 @@ def sql_cobertura_por_escuela(f: dict) -> tuple[str, list]:
     Se combina en Python con sql_materias_totales agrupado por escuela."""
     where, params = where_archivo(f)
     sql = f"""
-    SELECT e.nombre AS escuela, count(DISTINCT m.id) AS materias_con_contenido
+    SELECT ({ESCUELA_EXPR}) AS escuela, count(DISTINCT m.id) AS materias_con_contenido
     {FROM_ARCHIVO}
     WHERE {where}
-    GROUP BY e.nombre
+    GROUP BY ({ESCUELA_EXPR})
     """
     return sql, params
 
@@ -232,25 +268,29 @@ def sql_materias_totales_por_escuela(f: dict) -> tuple[str, list]:
     """Denominador del panel de cobertura, desglosado por escuela."""
     where, params = where_materia(f)
     sql = f"""
-    SELECT e.nombre AS escuela, count(DISTINCT m.id) AS materias_totales
+    SELECT ({ESCUELA_EXPR}) AS escuela, count(DISTINCT m.id) AS materias_totales
     {FROM_MATERIA}
     WHERE {where}
-    GROUP BY e.nombre
+    GROUP BY ({ESCUELA_EXPR})
     """
     return sql, params
 
 
 def sql_por_extension(f: dict) -> tuple[str, list]:
-    """Panel 5: distribucion de archivos por tipo de extension."""
+    """Panel 5: distribucion de archivos por tipo de extension.
+
+    Se agrupa por upper(ex.tipo) para no separar 'pdf' de 'PDF', y se limita
+    a EXTENSIONES_VALIDAS para no mostrar las filas sin extension real (ver
+    comentario junto a esa constante)."""
     where, params = where_archivo(f)
     sql = f"""
-    SELECT ex.tipo AS extension, count(*) AS archivos
+    SELECT upper(ex.tipo) AS extension, count(*) AS archivos
     {FROM_ARCHIVO}
-    WHERE {where}
-    GROUP BY ex.tipo
+    WHERE {where} AND upper(ex.tipo) = ANY(%s)
+    GROUP BY upper(ex.tipo)
     ORDER BY archivos DESC
     """
-    return sql, params
+    return sql, [*params, EXTENSIONES_VALIDAS]
 
 
 def sql_por_programa(f: dict) -> tuple[str, list]:
@@ -258,13 +298,13 @@ def sql_por_programa(f: dict) -> tuple[str, list]:
     where, params = where_archivo(f)
     sql = f"""
     SELECT
-        pr.nombre                AS programa,
-        e.nombre                 AS escuela,
+        ({PROGRAMA_EXPR})        AS programa,
+        ({ESCUELA_EXPR})         AS escuela,
         count(*)                 AS archivos,
         count(DISTINCT m.id)     AS materias
     {FROM_ARCHIVO}
     WHERE {where}
-    GROUP BY pr.nombre, e.nombre
+    GROUP BY ({PROGRAMA_EXPR}), ({ESCUELA_EXPR})
     ORDER BY archivos DESC
     """
     return sql, params
@@ -303,13 +343,14 @@ def sql_opciones_filtros() -> dict[str, tuple[str, list]]:
             [],
         ),
         "extensiones": (
-            f"""SELECT DISTINCT ex.tipo AS valor
+            f"""SELECT DISTINCT upper(ex.tipo) AS valor
                 FROM {ESQUEMA}.extension ex
                 JOIN {ESQUEMA}.archivo a ON a.extension_id = ex.id
                 JOIN {ESQUEMA}.cliente c ON c.id = a.cliente_id
                 WHERE a.activo = TRUE AND c.nombre ILIKE '%%producto%%'
+                  AND upper(ex.tipo) = ANY(%s)
                 ORDER BY 1""",
-            [],
+            [EXTENSIONES_VALIDAS],
         ),
         "semestres": (
             f"""SELECT DISTINCT m.semestre AS valor
@@ -319,7 +360,7 @@ def sql_opciones_filtros() -> dict[str, tuple[str, list]]:
             [],
         ),
         "escuelas_programas": (
-            f"""SELECT DISTINCT e.nombre AS escuela, pr.nombre AS programa,
+            f"""SELECT DISTINCT ({ESCUELA_EXPR}) AS escuela, ({PROGRAMA_EXPR}) AS programa,
                        ({NIVEL_EXPR}) AS nivel
                 {FROM_ARCHIVO}
                 WHERE {WHERE_BASE}
@@ -357,8 +398,8 @@ SELECT
     d.codigo               AS destinatario,
     p.codigo                AS periodo,
     c.nombre                AS cliente,
-    e.nombre                AS escuela,
-    pr.nombre               AS programa,
+    ({ESCUELA_EXPR})         AS escuela,
+    ({PROGRAMA_EXPR})        AS programa,
     ({NIVEL_EXPR})           AS nivel,
     m.semestre               AS semestre,
     pk.nombre                 AS paquete,
@@ -367,7 +408,7 @@ SELECT
     g.nombre                     AS granulo,
     a.nombre                      AS archivo,
     a.nombre_original              AS nombre_original,
-    ex.tipo                         AS extension,
+    upper(ex.tipo)                  AS extension,
     a.enlace                         AS enlace,
     a.fecha_registro                  AS fecha_registro
 """

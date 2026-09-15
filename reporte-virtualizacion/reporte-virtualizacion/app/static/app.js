@@ -187,13 +187,15 @@
     document.getElementById('t-escuela').textContent =
       datos.length ? `${datos[0].escuela} concentra el mayor volumen de ${etiquetas[estado.metricaEscuela]}` : 'Comparativo por escuela';
 
+    const maxValor = Math.max(0, ...datos.map(d => d[estado.metricaEscuela]));
+
     Highcharts.chart('g-escuela', {
       chart: { type: 'bar', height: 300 },
       xAxis: Highcharts.merge(EJE_X, {
         categories: datos.map(d => d.escuela), lineWidth: 0, tickWidth: 0,
         labels: { style: { color: COLOR.tinta, fontSize: '11px' } }
       }),
-      yAxis: Highcharts.merge(EJE_Y, { gridLineWidth: 0, labels: { enabled: false } }),
+      yAxis: Highcharts.merge(EJE_Y, { gridLineWidth: 0, labels: { enabled: false }, max: maxValor * 1.12 }),
       legend: { enabled: false },
       tooltip: {
         formatter: function () {
@@ -204,7 +206,11 @@
       series: [{
         name: etiquetas[estado.metricaEscuela], color: COLOR.azul, borderWidth: 0, pointPadding: .12,
         data: datos.map(d => d[estado.metricaEscuela]),
-        dataLabels: { enabled: true, inside: false, color: COLOR.tinta, style: { fontSize: '11px' }, formatter: function () { return abreviar(this.y); } }
+        dataLabels: {
+          enabled: true, inside: false, crop: false, overflow: 'allow',
+          color: COLOR.tinta, style: { fontSize: '11px', textOutline: 'none' },
+          formatter: function () { return abreviar(this.y); }
+        }
       }]
     });
   }
@@ -528,11 +534,11 @@
 
   /* ---------- pestaña Detalle ---------- */
 
-  const COLUMNAS_TABLA = ['escuela', 'programa', 'nivel', 'semestre', 'materia', 'granulo', 'archivo', 'extension', 'periodo', 'fecha_registro'];
+  const COLUMNAS_TABLA = ['escuela', 'programa', 'nivel', 'semestre', 'materia', 'granulo', 'enlace', 'fecha_registro'];
 
   async function cargarDetalle() {
     const cuerpo = document.getElementById('tabla-cuerpo');
-    cuerpo.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#9aa5b1;padding:24px">Cargando…</td></tr>';
+    cuerpo.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9aa5b1;padding:24px">Cargando…</td></tr>';
 
     const params = {
       ...estado.filtros,
@@ -541,7 +547,7 @@
     };
     const r = await fetch('/api/detalle?' + qs(params));
     if (!r.ok) {
-      cuerpo.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#de3a34;padding:24px">No se pudo cargar el detalle.</td></tr>';
+      cuerpo.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#de3a34;padding:24px">No se pudo cargar el detalle.</td></tr>';
       return;
     }
     const d = await r.json();
@@ -562,12 +568,10 @@
           <td class="num">${f.semestre ?? '—'}</td>
           <td>${f.materia}</td>
           <td>${f.granulo_codigo} — ${f.granulo}</td>
-          <td>${f.archivo}</td>
-          <td>${f.extension.toUpperCase()}</td>
-          <td>${f.periodo}</td>
+          <td>${f.enlace ? `<a href="${f.enlace}" target="_blank" rel="noopener">Ver ↗</a>` : '—'}</td>
           <td>${fecha(f.fecha_registro)}</td>
         </tr>`).join('')
-      : '<tr><td colspan="10" style="text-align:center;color:#9aa5b1;padding:24px">Sin resultados para estos filtros.</td></tr>';
+      : '<tr><td colspan="8" style="text-align:center;color:#9aa5b1;padding:24px">Sin resultados para estos filtros.</td></tr>';
 
     const totalPaginas = Math.max(1, Math.ceil(d.total / estado.detalle.tamano));
     document.getElementById('pag-texto').textContent = `Página ${estado.detalle.pagina} de ${totalPaginas}`;

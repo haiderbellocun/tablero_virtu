@@ -1,0 +1,6 @@
+INFO:     Started server process [15232]
+INFO:     Waiting for application startup.
+INFO reporte Reporte de virtualizacion listo · esquema fabrica
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO reporte.db Abriendo pool hacia 136.116.213.121:5432
