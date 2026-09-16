@@ -100,7 +100,9 @@ JOIN       {ESQUEMA}.programa     pr  ON pr.id = m.programa_id
 JOIN       {ESQUEMA}.escuela      e   ON e.id  = pr.escuela_id
 """
 
-WHERE_BASE = "a.activo = TRUE AND c.nombre ILIKE '%%producto%%' AND e.nombre <> ''"
+# El cliente ('PRODUCTO' o 'TANIA') no filtra contenido: ambos son
+# virtualizacion real y valida, solo canales distintos de carga.
+WHERE_BASE = "a.activo = TRUE AND e.nombre <> ''"
 
 # Misma exclusion de "sin escuela" para el universo estructural (sin join a
 # archivo/cliente), usada por where_materia.
@@ -330,15 +332,14 @@ def sql_por_semestre(f: dict) -> tuple[str, list]:
 
 def sql_opciones_filtros() -> dict[str, tuple[str, list]]:
     """Una consulta por desplegable. Todas se acotan al mismo universo
-    (activo + cliente producto) para no ofrecer opciones que devuelven cero
+    (activo, cualquier cliente) para no ofrecer opciones que devuelven cero
     filas."""
     return {
         "periodos": (
             f"""SELECT DISTINCT p.codigo AS valor
                 FROM {ESQUEMA}.periodo p
                 JOIN {ESQUEMA}.archivo a ON a.periodo_id = p.id
-                JOIN {ESQUEMA}.cliente c ON c.id = a.cliente_id
-                WHERE a.activo = TRUE AND c.nombre ILIKE '%%producto%%'
+                WHERE a.activo = TRUE
                 ORDER BY 1 DESC""",
             [],
         ),
@@ -346,8 +347,7 @@ def sql_opciones_filtros() -> dict[str, tuple[str, list]]:
             f"""SELECT DISTINCT upper(ex.tipo) AS valor
                 FROM {ESQUEMA}.extension ex
                 JOIN {ESQUEMA}.archivo a ON a.extension_id = ex.id
-                JOIN {ESQUEMA}.cliente c ON c.id = a.cliente_id
-                WHERE a.activo = TRUE AND c.nombre ILIKE '%%producto%%'
+                WHERE a.activo = TRUE
                   AND upper(ex.tipo) = ANY(%s)
                 ORDER BY 1""",
             [EXTENSIONES_VALIDAS],
