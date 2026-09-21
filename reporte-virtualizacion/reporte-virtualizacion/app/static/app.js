@@ -382,16 +382,24 @@
   /* ---------- panel 7: archivos por semestre ---------- */
 
   function graficoSemestre() {
+    const esDiplomado = estado.filtros.nivel === 'Diplomado';
+    const etiqueta = esDiplomado ? 'Módulo' : 'Semestre';
+    const abrev = esDiplomado ? 'Mód. ' : 'Sem. ';
+
     const datos = [...estado.reporte.por_semestre].sort((a, b) => a.semestre - b.semestre);
     if (datos.length) {
       const pico = [...datos].sort((a, b) => b.archivos - a.archivos)[0];
-      document.getElementById('t-semestre').textContent = `El semestre ${pico.semestre} concentra el mayor volumen de archivos`;
+      document.getElementById('t-semestre').textContent = `El ${etiqueta.toLowerCase()} ${pico.semestre} concentra el mayor volumen de archivos`;
+    } else {
+      document.getElementById('t-semestre').textContent = `Archivos por ${etiqueta.toLowerCase()} del plan de estudios`;
     }
+    document.getElementById('sub-semestre').textContent =
+      `Barras = archivos · línea = materias con contenido · ${etiqueta.toLowerCase()} 1–10.`;
 
     Highcharts.chart('g-semestre', {
       chart: { height: 300 },
       xAxis: Highcharts.merge(EJE_X, {
-        categories: datos.map(d => 'Sem. ' + d.semestre), lineWidth: 0, tickWidth: 0,
+        categories: datos.map(d => abrev + d.semestre), lineWidth: 0, tickWidth: 0,
         labels: { style: { color: COLOR.tinta, fontSize: '11px' } }
       }),
       yAxis: [

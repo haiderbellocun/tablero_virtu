@@ -79,6 +79,24 @@ EXTENSIONES_VALIDAS = [
     "M4A", "OTF",
 ]
 
+# El desplegable "Tipo de archivo" no debe mostrar la extension cruda: se
+# agrupa en categorias legibles (documento, presentacion, video...). El
+# panel de "por extension" no se toca, solo el filtro/desplegable.
+EXTENSION_TIPO_EXPR = (
+    "CASE upper(ex.tipo) "
+    "WHEN 'PDF' THEN 'Documento' WHEN 'DOCX' THEN 'Documento' WHEN 'TXT' THEN 'Documento' "
+    "WHEN 'XML' THEN 'Documento' WHEN 'INI' THEN 'Documento' "
+    "WHEN 'PPTX' THEN 'Presentación' WHEN 'PPTM' THEN 'Presentación' "
+    "WHEN 'MP4' THEN 'Video' "
+    "WHEN 'MP3' THEN 'Podcast' WHEN 'WAV' THEN 'Podcast' WHEN 'M4A' THEN 'Podcast' "
+    "WHEN 'PNG' THEN 'Imagen' WHEN 'JPG' THEN 'Imagen' WHEN 'ICO' THEN 'Imagen' "
+    "WHEN 'AI' THEN 'Diseño' WHEN 'PRPROJ' THEN 'Diseño' "
+    "WHEN 'QUIZ' THEN 'Evaluación interactiva' WHEN 'SCENARIO' THEN 'Evaluación interactiva' "
+    "WHEN 'TTF' THEN 'Fuente' WHEN 'OTF' THEN 'Fuente' "
+    "WHEN 'ZIP' THEN 'Comprimido' "
+    "ELSE 'Otro' END"
+)
+
 FROM_ARCHIVO = f"""
 FROM       {ESQUEMA}.archivo      a
 JOIN       {ESQUEMA}.granulo      g   ON g.id  = a.granulo_id
@@ -136,7 +154,7 @@ def _condiciones_contenido(f: dict) -> tuple[list[str], list]:
         cond.append("p.codigo = %s")
         params.append(f["periodo"])
     if f.get("extension"):
-        cond.append("upper(ex.tipo) = upper(%s)")
+        cond.append(f"({EXTENSION_TIPO_EXPR}) = %s")
         params.append(f["extension"])
     if f.get("q"):
         like = f"%{f['q']}%"
@@ -344,7 +362,7 @@ def sql_opciones_filtros() -> dict[str, tuple[str, list]]:
             [],
         ),
         "extensiones": (
-            f"""SELECT DISTINCT upper(ex.tipo) AS valor
+            f"""SELECT DISTINCT ({EXTENSION_TIPO_EXPR}) AS valor
                 FROM {ESQUEMA}.extension ex
                 JOIN {ESQUEMA}.archivo a ON a.extension_id = ex.id
                 WHERE a.activo = TRUE
